@@ -35,43 +35,39 @@
 
 
 
-// Teensy is mounted with two rows hanging over the socket
-// That sets up GPIO 1 as pin 1 in the 2716 socket 
-#define PIN_ADDR7          1   // 1.02
-#define PIN_ADDR6          2   // 4.04
-#define PIN_ADDR5          3   // 4.05
-#define PIN_ADDR4          4   // 4.06
-#define PIN_ADDR3          5   // 4.08
-#define PIN_ADDR2          6   // 2.10
-#define PIN_ADDR1          7   // 2.17
-#define PIN_ADDR0          8   // 2.16
-#define PIN_DATA0          9   // 2.11
-#define PIN_DATA1          10  // 2.00
-#define PIN_DATA2          11  // 2.02
-#define PIN_VSS            12  // 2.01
+// all inputs are optimized for reading software speed and a single GPIO bank
+#define PIN_ADDR0          19   // 1.16
+#define PIN_ADDR1          18   // 1.17
+#define PIN_ADDR2          14   // 1.18
+#define PIN_ADDR3          15   // 1.19
+#define PIN_ADDR4          40   // 1.20
+#define PIN_ADDR5          41   // 1.21
+#define PIN_ADDR6          17   // 1.22
+#define PIN_ADDR7          16   // 1.23
+#define PIN_ADDR8          22   // 1.24
+#define PIN_ADDR9          23   // 1.25
+#define PIN_ADDR10         20   // 1.26
 
-#define PIN_VCC            - // 3.3V (bend pin outward, do not connect)
-#define PIN_ADDR8          23  // 1.25
-#define PIN_ADDR9          22  // 1.24
-#define PIN_VPP            21  // floating
-#define PIN_G              20  // input (ignore since it's just for one 2kb chunk)
-#define PIN_ADDR10         19  // 1.16
-#define PIN_EP             18  // 1.17
-#define PIN_DATA7          17  // 1.22
-#define PIN_DATA6          16  // 1.23
-#define PIN_DATA5          15  // 1.19
-#define PIN_DATA4          14  // 1.18
-#define PIN_DATA3          13  // 2.03
+// address pins beyond the 2716 footprint requiring jumper hookup
+#define PIN_ADDR11         21 // 1.27  wire to Sega G80 U30.1 (A11)
+#define PIN_ADDR12         38 // 1.28  wire to Sega G80 U30.2 (A12)
+#define PIN_ADDR13         39 // 1.29  wire to Sega G80 U30.3 (A13)
+#define PIN_ADDR14         26 // 1.30  wire to Sega G80 U30.4 (A14)
+#define PIN_ADDR15         27 // 1.31  wire to Sega G80 U30.5 (A15)
+#define PIN_CS             25 // 1.13  wire to Sega G80 U25.1 (nBuffer)
 
-// address pins beyond the 2716 footprint
-#define PIN_ADDR11         25 // 1.13  wire to U30.1 (A11)
-#define PIN_ADDR12         26 // 1.30  wire to U30.2 (A12)
-#define PIN_ADDR13         27 // 1.31  wire to U30.3 (A13)
-#define PIN_ADDR14         38 // 1.28  wire to U30.4 (A14)
-#define PIN_ADDR15         39 // 1.29  wire to U30.5 (A15)
-#define PIN_CS             24 // 1.12  wire to U25.1 (nBuffer)
+// all outputs are optimized for writing software speed and single GPIO bank
+#define PIN_DATA0          6   // 2.10
+#define PIN_DATA1          9   // 2.11
+#define PIN_DATA2          32  // 2.12
+#define PIN_DATA3          8   // 2.16
+#define PIN_DATA4          7   // 2.17
+#define PIN_DATA5          36  // 2.18
+#define PIN_DATA6          37  // 2.19
+#define PIN_DATA7          35  // 2.28
 
-#define PIN_LED            13 // conflict! with PIN_DATA3
+
+#define PIN_LED            13 // onboard Teensy
 
 
 uint8_t memory[65536] = {0,};
@@ -136,76 +132,16 @@ void setup() {
 
 
 uint16_t readAddress(void) {
-
-  uint32_t g1 = GPIO1_DR;
-  uint32_t g2 = GPIO2_DR;
-  uint32_t g4 = GPIO4_DR;
-
-  uint32_t address = 
-          ((g1 & (1<<29)) >> 29 ) | // A15
-          ((g1 & (1<<28)) >> 28 ) | // A14
-          ((g1 & (1<<31)) >> 31 ) | // A13
-          ((g1 & (1<<30)) >> 30 ) | // A12
-          ((g1 & (1<<13)) >> 13 ) | // A11
-          ((g1 & (1<<16)) >> 16 ) | // A10
-          ((g1 & (1<<24)) >> 24 ) | // A9
-          ((g1 & (1<<25)) >> 25 ) | // A8
-          ((g1 & (1<<2)) >> 2 ) | // A7
-
-          ((g4 & (1<<4)) >> 4 ) | // A6
-          ((g4 & (1<<5)) >> 5 ) | // A5
-          ((g4 & (1<<6)) >> 6 ) | // A4
-          ((g4 & (1<<8)) >> 8 ) | // A3
-
-          ((g2 & (1<<10)) >> 10 ) | // A2
-          ((g2 & (1<<17)) >> 17 ) | // A1
-          ((g2 & (1<<16)) >> 16 ); // A0
-
+  uint32_t address = GPIO1_DR >> 16; // A0-A15 maps contiguously to 1.16-1.31
   return (0x7FFF & address);  // 32KB ROM (27C256)
 }
 
 
 void writeData( uint8_t data ) {
-
-     const uint32_t lut_2[] = {
-      0x00000000, // 0000 0000 0000 0000 0000 0000 0000 0000
-      0x00000800, // 0000 0000 0001 0000 0000 0000 0000 0000
-      0x00000001, // 1000 0000 0000 0000 0000 0000 0000 0000
-      0x00000801, // 1000 0000 0001 0000 0000 0000 0000 0000
-      0x00000004, // 0010 0000 0000 0000 0000 0000 0000 0000
-      0x00000804, // 0010 0000 0001 0000 0000 0000 0000 0000
-      0x00000005, // 1010 0000 0000 0000 0000 0000 0000 0000
-      0x00000805, // 1010 0000 0001 0000 0000 0000 0000 0000
-      0x00000008, // 0001 0000 0000 0000 0000 0000 0000 0000
-      0x00000808, // 0001 0000 0001 0000 0000 0000 0000 0000
-      0x00000009, // 1001 0000 0000 0000 0000 0000 0000 0000
-      0x00000809, // 1001 0000 0001 0000 0000 0000 0000 0000
-      0x0000000c, // 0011 0000 0000 0000 0000 0000 0000 0000
-      0x0000080c, // 0011 0000 0001 0000 0000 0000 0000 0000
-      0x0000000d, // 1011 0000 0000 0000 0000 0000 0000 0000
-      0x0000080d, // 1011 0000 0001 0000 0000 0000 0000 0000
-    };
-    const uint32_t lut_1[] = {
-      0x00000000, // 0000 0000 0000 0000 0000 0000 0000 0000
-      0x00040000, // 0000 0000 0000 0000 0010 0000 0000 0000
-      0x00080000, // 0000 0000 0000 0000 0001 0000 0000 0000
-      0x000c0000, // 0000 0000 0000 0000 0011 0000 0000 0000
-      0x00800000, // 0000 0000 0000 0000 0000 0001 0000 0000
-      0x00840000, // 0000 0000 0000 0000 0010 0001 0000 0000
-      0x00880000, // 0000 0000 0000 0000 0001 0001 0000 0000
-      0x008c0000, // 0000 0000 0000 0000 0011 0001 0000 0000
-      0x00400000, // 0000 0000 0000 0000 0000 0010 0000 0000
-      0x00440000, // 0000 0000 0000 0000 0010 0010 0000 0000
-      0x00480000, // 0000 0000 0000 0000 0001 0010 0000 0000
-      0x004c0000, // 0000 0000 0000 0000 0011 0010 0000 0000
-      0x00c00000, // 0000 0000 0000 0000 0000 0011 0000 0000
-      0x00c40000, // 0000 0000 0000 0000 0010 0011 0000 0000
-      0x00c80000, // 0000 0000 0000 0000 0001 0011 0000 0000
-      0x00cc0000, // 0000 0000 0000 0000 0011 0011 0000 0000
-    };
-
-    GPIO2_DR = lut_2[ data & 0x0F ];
-    GPIO1_DR = lut_1[ (data & 0xF0) >> 4 ];
+  uint32_t g1 = (data & 0x07) << 10;        // D0-D2 maps to 2.10-2.12
+  uint32_t g2 = (data & 0x78) >> 3 << 16;   // D3-D6 maps to 2.16-2.19
+  uint32_t g3 = (data & 0x80) >> 7 << 28;   // D7    maps to 2.28 
+  GPIO2_DR = g1 | g2 | g3;
 }
 
 void loop() {
@@ -228,120 +164,3 @@ void loop() {
   // digitalWrite(PIN_LED, 1);
 
  }
-
-
- void printb(uint32_t n) {
-    for (int i=0; i<32; i++) {
-        if ( i % 4 == 0 ) {
-            printf(" ");
-        }
-        if (n & 1) {
-            printf("1");
-        } else {
-            printf("0");
-        }
-        n >>= 1;
-    }
-}
-
- void make_data_lut(void) {
-    printf("const uint32_t lut_2[] = {\n");
-    for (uint32_t i=0; i<1<<4; i++) {
-        uint32_t d0 = (i>>0) & 0x01;
-        uint32_t d1 = (i>>1) & 0x01;
-        uint32_t d2 = (i>>2) & 0x01;
-        uint32_t d3 = (i>>3) & 0x01;
-        uint32_t d = 0;
-        d |= d0 << 11;
-        d |= d1 << 0;
-        d |= d2 << 2;
-        d |= d3 << 3;
-        printf("\t0x%08lx, //",d);
-        printb( d );
-        printf("\n");
-    }
-    printf("};\n");
-
-    printf("const uint32_t lut_1[] = {\n");
-    for (uint32_t i=0; i<1<<4; i++) {
-        uint32_t d0 = (i>>0) & 0x01;
-        uint32_t d1 = (i>>1) & 0x01;
-        uint32_t d2 = (i>>2) & 0x01;
-        uint32_t d3 = (i>>3) & 0x01;
-        uint32_t d = 0;
-        d |= d0 << 18;
-        d |= d1 << 19;
-        d |= d2 << 23;
-        d |= d3 << 22;
-        printf("\t0x%08lx, //",d);
-        printb( d );
-        printf("\n");
-    }
-    printf("};\n");
- }
-
-
-
- /*
-
-Pin            GPIO
-1              1.02
-0              1.03
-24/A10        1.12
-25/A11        1.13
-19/A5          1.16
-18/A4          1.17
-14/A0          1.18
-15/A1          1.19
-40/A16         1.20
-41/A17         1.21
-17/A3          1.22
-16/A2          1.23
-22/A8          1.24
-23/A9          1.25
-20/A6          1.26
-21/A7          1.27
-38/A14         1.28
-39/A5           1.29
-26/A12        1.30
-27/A13        1.31
-
-10            2.00
-12            2.01
-11            2.02
-13            2.03
-6              2.10
-9               2.11
-32            2.12
-8              2.16
-7              2.17
-36            2.18
-37            2.19
-35            2.28
-34            2.29
-
-45            3.12
-44            3.13
-43            3.14
-42            3.15
-47            3.16
-46            3.17
-28            3.18
-31            3.22
-30            3.23
-
-2              4.04
-3             4.05
-4              4.06
-33            4.07
-5              4.08
-51            4.22
-48            4.24
-53            4.25
-52            4.26
-49            4.27
-50            4.28
-54            4.29
-29            4.31
-
- */

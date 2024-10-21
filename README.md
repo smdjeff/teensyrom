@@ -11,7 +11,7 @@
 * Arduino IDE
 * Teensy 4.1
 * Jumper wires
-* $10 PCBA from JLCPCB (fabrication outputs included)
+* $10 level shifting PCBA from JLCPCB (fabrication outputs included)
 
 ## Inspired
 by Ted Fried, MicroCore Labs [ROM Emulator](https://github.com/MicroCoreLabs/Projects/tree/master/EPROM_Emulator)

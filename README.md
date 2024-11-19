@@ -1,7 +1,7 @@
 # teensy rom
 
-* Plugs directly into a 2716 socket
-* Runs very fast firmware to emulate an 2716 EEPROM
+* Plugs directly into a 2716/512 socket
+* Runs very fast firmware to emulate an 2716/512 EEPROM
 * Loads rom.bin from SD card
 * Polls CS pin to toggle data output or tristate
 * Up to 64KB supported with jumpers to a board beyond the 2716 socket
@@ -16,6 +16,9 @@
 ## Inspired
 by Ted Fried, MicroCore Labs [ROM Emulator](https://github.com/MicroCoreLabs/Projects/tree/master/EPROM_Emulator)
 
-![screenshot](teensyrom2716.jpg)
+2716             |  27512
+:-------------------------:|:-------------------------:
+![](teensyrom2716.jpg)  |  ![](teensyrom27512.jpg)
+
 ![screenshot](sega-teensy.jpg)
 

@@ -29,6 +29,7 @@
 //
 //------------------------------------------------------------------------
 
+#include <stdio.h>
 #include <stdint.h>
 #include <SD.h>
 #include <SPI.h>
@@ -70,10 +71,25 @@
 #define PIN_LED            13 // onboard Teensy
 
 
-uint8_t memory[65536] = {0,};
+// 57C512 is 64KB 
+DMAMEM uint8_t memory[64*1024] = {0,}; // RAM2
 
 
-void dataPins(uint8_t mode) {
+uint32_t crc32(uint8_t *data, uint32_t length ) {
+   uint32_t crc = 0xFFFFFFFF;
+   for (uint32_t i=0; i<length; i++) {
+      uint8_t byte = data[ i ];
+      crc = crc ^ byte;
+      for (int j = 7; j >= 0; j--) {
+         uint32_t mask = -(crc & 1);
+         crc = (crc >> 1) ^ (0xEDB88320 & mask);
+      }
+   }
+   return ~crc;
+}
+
+
+void dataPinsMode(uint8_t mode) {
   pinMode(PIN_DATA0,   mode);
   pinMode(PIN_DATA1,   mode);
   pinMode(PIN_DATA2,   mode);
@@ -88,7 +104,7 @@ void dataPins(uint8_t mode) {
 //
 void setup() {
     
-  // pinMode(PIN_LED,   OUTPUT);
+  pinMode(PIN_LED,   OUTPUT);
 
   pinMode(PIN_ADDR0,   INPUT);
   pinMode(PIN_ADDR1,   INPUT);
@@ -112,14 +128,20 @@ void setup() {
   if (SD.begin(BUILTIN_SDCARD)) {
     File fp = SD.open("rom.bin", FILE_READ);
     if (fp) {
-      int i = 0;
-      while (fp.available()) {
-         memory[ i ] = fp.read();
-         i++;
+      printf("loading rom.bin\n");
+      uint32_t i = 0;
+      while (fp.available() && i < sizeof(memory)) {
+         memory[ i++ ] = fp.read();
       }
+      printf("loaded %ld bytes\n",i);
+    } else {
+      printf("could't open rom.bin\n");
     }
-
+  } else {
+    printf("couldn't start sd driver\n");
   }
+
+  printf("crc:%08lx\n", crc32( memory, sizeof(memory)) );
 }
 
 
@@ -132,35 +154,79 @@ void setup() {
 
 
 uint16_t readAddress(void) {
-  uint32_t address = GPIO1_DR >> 16; // A0-A15 maps contiguously to 1.16-1.31
-  return (0x7FFF & address);  // 32KB ROM (27C256)
+  uint32_t address = GPIO1_DR >> 16; // A0-A15 is contiguous 1.16-1.31
+  return (0xFFFF & address);  // 64KB ROM (27C512)
 }
-
 
 void writeData( uint8_t data ) {
-  uint32_t g1 = (data & 0x07) << 10;        // D0-D2 maps to 2.10-2.12
-  uint32_t g2 = (data & 0x78) >> 3 << 16;   // D3-D6 maps to 2.16-2.19
-  uint32_t g3 = (data & 0x80) >> 7 << 28;   // D7    maps to 2.28 
-  GPIO2_DR = g1 | g2 | g3;
+  digitalWriteFast( PIN_DATA0, data & 0x01 );
+  digitalWriteFast( PIN_DATA1, data & 0x02 );
+  digitalWriteFast( PIN_DATA2, data & 0x04 );
+  digitalWriteFast( PIN_DATA3, data & 0x08 );
+  digitalWriteFast( PIN_DATA4, data & 0x10 );
+  digitalWriteFast( PIN_DATA5, data & 0x20 );
+  digitalWriteFast( PIN_DATA6, data & 0x40 );
+  digitalWriteFast( PIN_DATA7, data & 0x80 );
 }
+
 
 void loop() {
 
-  dataPins( INPUT );
   while  ( digitalRead( PIN_CS ) != 0 ) {
     // wait for assert chip select 
   };
 
   uint16_t address = readAddress();
-  writeData( memory[ address] );
+  uint8_t data = memory[ address ];
 
-  // digitalWrite(PIN_LED, 1);
+  writeData( data );
+  dataPinsMode( OUTPUT );
+  digitalWrite(PIN_LED, 1);
 
-  dataPins( OUTPUT );
   while  ( digitalRead( PIN_CS ) == 0 ) {
     // wait for deassert chip select 
   };
 
-  // digitalWrite(PIN_LED, 1);
+  dataPinsMode( INPUT );
+  digitalWrite(PIN_LED, 0);
 
- }
+}
+
+
+void test() {
+
+  for (;;) {
+    if ( !digitalRead( PIN_CS ) ) { printf("CS "); } /// this is currently connected to 27512 nOE pin 22
+    if ( !digitalRead( PIN_DATA0 ) ) { printf("D0 "); }
+    if ( !digitalRead( PIN_DATA1 ) ) { printf("D1 "); }
+    if ( !digitalRead( PIN_DATA2 ) ) { printf("D2 "); }
+    if ( !digitalRead( PIN_DATA3 ) ) { printf("D3 "); }
+    if ( !digitalRead( PIN_DATA4 ) ) { printf("D4 "); }
+    if ( !digitalRead( PIN_DATA5 ) ) { printf("D5 "); }
+    if ( !digitalRead( PIN_DATA6 ) ) { printf("D6 "); }
+    if ( !digitalRead( PIN_DATA7 ) ) { printf("D7 "); }
+    if ( !digitalRead( PIN_ADDR0 ) ) { printf("A0 "); }
+    if ( !digitalRead( PIN_ADDR1 ) ) { printf("A1 "); }
+    if ( !digitalRead( PIN_ADDR2 ) ) { printf("A2 "); }
+    if ( !digitalRead( PIN_ADDR3 ) ) { printf("A3 "); }
+    if ( !digitalRead( PIN_ADDR4 ) ) { printf("A4 "); }
+    if ( !digitalRead( PIN_ADDR5 ) ) { printf("A5 "); }
+    if ( !digitalRead( PIN_ADDR6 ) ) { printf("A6 "); }
+    if ( !digitalRead( PIN_ADDR7 ) ) { printf("A7 "); }
+    if ( !digitalRead( PIN_ADDR8 ) ) { printf("A8 "); }
+    if ( !digitalRead( PIN_ADDR9 ) ) { printf("A9 "); }
+    if ( !digitalRead( PIN_ADDR10 ) ) { printf("A10 "); }
+    if ( !digitalRead( PIN_ADDR11 ) ) { printf("A11 "); }
+    if ( !digitalRead( PIN_ADDR12 ) ) { printf("A12 "); }
+    if ( !digitalRead( PIN_ADDR13 ) ) { printf("A13 "); }
+    if ( !digitalRead( PIN_ADDR14 ) ) { printf("A14 "); }
+    if ( !digitalRead( PIN_ADDR15 ) ) { printf("A15 "); }
+    printf("\n");
+    delay(500);
+    digitalToggle(PIN_LED);
+  }
+
+}
+
+
+
